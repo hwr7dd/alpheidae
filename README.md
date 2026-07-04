@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="Alpheidae" width="280"/>
+</p>
+
 # ⚡ Alpheidae
 
 A distributed, vectorized SQL engine in Rust built around one constraint: the
