@@ -1,0 +1,8 @@
+[package]
+name = "blitz-avro"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde_json = "1"
+miniz_oxide = "0.7"

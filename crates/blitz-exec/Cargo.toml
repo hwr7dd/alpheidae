@@ -1,0 +1,9 @@
+[package]
+name = "blitz-exec"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+blitz-core = { path = "../blitz-core" }
+blitz-cluster = { path = "../blitz-cluster" }
+blitz-sql = { path = "../blitz-sql" }

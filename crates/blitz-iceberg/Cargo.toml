@@ -1,0 +1,9 @@
+[package]
+name = "blitz-iceberg"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+blitz-avro = { path = "../blitz-avro" }
+blitz-format = { path = "../blitz-format" }
+serde_json = "1"

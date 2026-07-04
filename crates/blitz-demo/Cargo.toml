@@ -1,0 +1,29 @@
+[package]
+name = "blitz-demo"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+blitz-core = { path = "../blitz-core" }
+blitz-cluster = { path = "../blitz-cluster" }
+blitz-sql = { path = "../blitz-sql" }
+blitz-exec = { path = "../blitz-exec" }
+
+[[bin]]
+name = "blitz-demo"
+path = "src/main.rs"
+
+[dependencies.blitz-format]
+path = "../blitz-format"
+[dependencies.blitz-iceberg]
+path = "../blitz-iceberg"
+[dependencies.blitz-plan]
+path = "../blitz-plan"
+[dependencies.blitz-meta]
+path = "../blitz-meta"
+[dependencies.blitz-engine]
+path = "../blitz-engine"
+
+[[bin]]
+name = "iceberg-demo"
+path = "src/bin/iceberg_demo.rs"

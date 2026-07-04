@@ -1,0 +1,15 @@
+[package]
+name = "blitz-boot"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+libc = "0.2"
+
+[[bin]]
+name = "blitz-init"
+path = "src/bin/blitz_init.rs"
+
+[[bin]]
+name = "blitz-igniter"
+path = "src/bin/blitz_igniter.rs"

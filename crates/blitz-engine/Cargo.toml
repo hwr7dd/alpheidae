@@ -1,0 +1,10 @@
+[package]
+name = "blitz-engine"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+blitz-format = { path = "../blitz-format" }
+blitz-iceberg = { path = "../blitz-iceberg" }
+blitz-plan = { path = "../blitz-plan" }
+blitz-meta = { path = "../blitz-meta" }

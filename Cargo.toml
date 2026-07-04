@@ -1,0 +1,27 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/blitz-core",
+    "crates/blitz-cluster",
+    "crates/blitz-sql",
+    "crates/blitz-exec",
+    "crates/blitz-boot",
+    "crates/blitz-demo",
+    "crates/blitz-format",
+    "crates/blitz-avro",
+    "crates/blitz-iceberg",
+    "crates/blitz-meta",
+    "crates/blitz-plan",
+    "crates/blitz-engine",
+]
+
+[profile.release]
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+opt-level = 3
+
+# Tiny, fast-resuming binaries for the microVM rootfs
+[profile.microvm]
+inherits = "release"
+strip = true

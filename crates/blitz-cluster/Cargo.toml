@@ -1,0 +1,7 @@
+[package]
+name = "blitz-cluster"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+blitz-core = { path = "../blitz-core" }
