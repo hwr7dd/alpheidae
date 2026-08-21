@@ -1,0 +1,33 @@
+# Local development image for Windows/macOS/Linux via Docker Desktop.
+# No KVM/Firecracker — runs simulated multi-node demos instead.
+#
+# Targets:
+#   runtime  — slim image with release binaries (demos)
+#   dev      — Rust toolchain for interactive `cargo build/test` with mounted source
+
+FROM rust:1.85-bookworm AS builder
+WORKDIR /src
+COPY Cargo.toml Cargo.lock ./
+COPY crates ./crates
+RUN cargo build --release -p blitz-demo --bin blitz-demo --bin iceberg-demo --bin multi-node-demo \
+ && cargo build --release -p blitz-meta --bin blitz-meta-server
+
+FROM debian:bookworm-slim AS runtime
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /src/target/release/blitz-demo \
+                    /src/target/release/iceberg-demo \
+                    /src/target/release/multi-node-demo \
+                    /src/target/release/blitz-meta-server \
+                    /usr/local/bin/
+WORKDIR /data
+ENV RUST_BACKTRACE=1
+ENTRYPOINT ["blitz-demo"]
+
+FROM rust:1.85-bookworm AS dev
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates pkg-config libssl-dev \
+    && rm -rf /var/lib/apt/lists/*
+WORKDIR /src
+ENV RUST_BACKTRACE=1
+CMD ["bash"]

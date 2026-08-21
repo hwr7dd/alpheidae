@@ -1,0 +1,9 @@
+target/
+.git/
+**/*.md
+!deploy/docker/DEV.md
+deploy/terraform/
+deploy/k8s/
+microvm/
+*.tar.gz
+**/*.blitz

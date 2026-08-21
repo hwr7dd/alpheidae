@@ -14,6 +14,9 @@ pub const BLOCK_ROWS: usize = 65_536;
 #[derive(Clone)]
 pub enum Column {
     I64(Vec<i64>),
+    F64(Vec<f64>),
+    Decimal(Vec<i128>, u8), // (values, scale)
+    Date(Vec<i32>),         // days since epoch
 }
 
 impl Column {
@@ -21,15 +24,116 @@ impl Column {
     pub fn as_i64(&self) -> &[i64] {
         match self {
             Column::I64(v) => v,
+            _ => panic!("Column is not i64"),
         }
     }
     pub fn len(&self) -> usize {
         match self {
             Column::I64(v) => v.len(),
+            Column::F64(v) => v.len(),
+            Column::Decimal(v, _) => v.len(),
+            Column::Date(v) => v.len(),
         }
     }
     pub fn is_empty(&self) -> bool {
         self.len() == 0
+    }
+
+    // Serialization for network shuffle
+    pub fn to_bytes(&self) -> Vec<u8> {
+        match self {
+            Column::I64(v) => {
+                let mut buf = vec![0u8]; // type discriminant
+                buf.extend((v.len() as u64).to_le_bytes());
+                buf.extend(v.iter().flat_map(|x| x.to_le_bytes()));
+                buf
+            }
+            Column::F64(v) => {
+                let mut buf = vec![1u8];
+                buf.extend((v.len() as u64).to_le_bytes());
+                buf.extend(v.iter().flat_map(|x| x.to_le_bytes()));
+                buf
+            }
+            Column::Decimal(v, scale) => {
+                let mut buf = vec![2u8];
+                buf.push(*scale);
+                buf.extend((v.len() as u64).to_le_bytes());
+                buf.extend(v.iter().flat_map(|x| x.to_le_bytes()));
+                buf
+            }
+            Column::Date(v) => {
+                let mut buf = vec![3u8];
+                buf.extend((v.len() as u64).to_le_bytes());
+                buf.extend(v.iter().flat_map(|x| x.to_le_bytes()));
+                buf
+            }
+        }
+    }
+
+    pub fn from_bytes(mut buf: &[u8]) -> std::io::Result<Self> {
+        use std::io::{Error, ErrorKind};
+        if buf.is_empty() {
+            return Err(Error::new(ErrorKind::InvalidData, "empty buffer"));
+        }
+        let typ = buf[0];
+        buf = &buf[1..];
+
+        match typ {
+            0 => { // I64
+                if buf.len() < 8 {
+                    return Err(Error::new(ErrorKind::InvalidData, "truncated length"));
+                }
+                let n = u64::from_le_bytes(buf[0..8].try_into().unwrap()) as usize;
+                buf = &buf[8..];
+                if buf.len() < n * 8 {
+                    return Err(Error::new(ErrorKind::InvalidData, "truncated data"));
+                }
+                let v = buf[0..n*8].chunks_exact(8).map(|c| i64::from_le_bytes(c.try_into().unwrap())).collect();
+                Ok(Column::I64(v))
+            }
+            1 => { // F64
+                if buf.len() < 8 {
+                    return Err(Error::new(ErrorKind::InvalidData, "truncated length"));
+                }
+                let n = u64::from_le_bytes(buf[0..8].try_into().unwrap()) as usize;
+                buf = &buf[8..];
+                if buf.len() < n * 8 {
+                    return Err(Error::new(ErrorKind::InvalidData, "truncated data"));
+                }
+                let v = buf[0..n*8].chunks_exact(8).map(|c| f64::from_le_bytes(c.try_into().unwrap())).collect();
+                Ok(Column::F64(v))
+            }
+            2 => { // Decimal
+                if buf.is_empty() {
+                    return Err(Error::new(ErrorKind::InvalidData, "missing scale"));
+                }
+                let scale = buf[0];
+                buf = &buf[1..];
+                if buf.len() < 8 {
+                    return Err(Error::new(ErrorKind::InvalidData, "truncated length"));
+                }
+                let n = u64::from_le_bytes(buf[0..8].try_into().unwrap()) as usize;
+                buf = &buf[8..];
+                if buf.len() < n * 16 {
+                    return Err(Error::new(ErrorKind::InvalidData, "truncated data"));
+                }
+                let v = buf[0..n*16].chunks_exact(16).map(|c| i128::from_le_bytes(c.try_into().unwrap())).collect();
+                Ok(Column::Decimal(v, scale))
+            }
+            3 => { // Date
+                if buf.len() < 8 {
+                    return Err(Error::new(ErrorKind::InvalidData, "truncated length"));
+                }
+                let n = u64::from_le_bytes(buf[0..8].try_into().unwrap()) as usize;
+                buf = &buf[8..];
+                if buf.len() < n * 4 {
+                    return Err(Error::new(ErrorKind::InvalidData, "truncated data"));
+                }
+                let v = buf[0..n*4].chunks_exact(4).map(|c| i32::from_le_bytes(c.try_into().unwrap())).collect();
+                Ok(Column::Date(v))
+            }
+            _ => Err(Error::new(ErrorKind::InvalidData, "unknown column type")),
+        }
     }
 }
 
@@ -244,4 +348,151 @@ pub fn group_agg(
         }
     }
     out
+}
+
+// ---------------------------------------------------------------------------
+// Float64 kernels
+// ---------------------------------------------------------------------------
+
+pub fn filter_f64(data: &[f64], op: CmpOp, lit: f64) -> Vec<u32> {
+    let n = data.len();
+    let mut out = vec![0u32; n];
+    let mut k = 0usize;
+    macro_rules! run {
+        ($cmp:expr) => {
+            for i in 0..n {
+                let v = unsafe { *data.get_unchecked(i) };
+                let m = $cmp(v) as usize;
+                unsafe { *out.get_unchecked_mut(k) = i as u32 };
+                k += m;
+            }
+        };
+    }
+    match op {
+        CmpOp::Gt => run!(|v: f64| v > lit),
+        CmpOp::Lt => run!(|v: f64| v < lit),
+        CmpOp::Ge => run!(|v: f64| v >= lit),
+        CmpOp::Le => run!(|v: f64| v <= lit),
+        CmpOp::Eq => run!(|v: f64| (v - lit).abs() < 1e-10),
+    }
+    out.truncate(k);
+    out
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct AccF64 {
+    pub sum: f64,
+    pub count: u64,
+    pub min: f64,
+    pub max: f64,
+}
+
+impl Default for AccF64 {
+    fn default() -> Self {
+        AccF64 { sum: 0.0, count: 0, min: f64::INFINITY, max: f64::NEG_INFINITY }
+    }
+}
+
+pub fn sum_f64(data: &[f64]) -> AccF64 {
+    let mut sum = 0.0;
+    let mut min = f64::INFINITY;
+    let mut max = f64::NEG_INFINITY;
+    for &v in data {
+        sum += v;
+        if v < min { min = v; }
+        if v > max { max = v; }
+    }
+    if data.is_empty() {
+        min = f64::NAN;
+        max = f64::NAN;
+    }
+    AccF64 { sum, count: data.len() as u64, min, max }
+}
+
+pub fn sum_f64_sel(data: &[f64], sel: &[u32]) -> AccF64 {
+    let mut sum = 0.0;
+    let mut min = f64::INFINITY;
+    let mut max = f64::NEG_INFINITY;
+    for &i in sel {
+        let v = unsafe { *data.get_unchecked(i as usize) };
+        sum += v;
+        if v < min { min = v; }
+        if v > max { max = v; }
+    }
+    if sel.is_empty() {
+        min = f64::NAN;
+        max = f64::NAN;
+    }
+    AccF64 { sum, count: sel.len() as u64, min, max }
+}
+
+// ---------------------------------------------------------------------------
+// Date kernels (days since epoch, i32)
+// ---------------------------------------------------------------------------
+
+pub fn filter_date(data: &[i32], op: CmpOp, lit: i32) -> Vec<u32> {
+    let n = data.len();
+    let mut out = vec![0u32; n];
+    let mut k = 0usize;
+    macro_rules! run {
+        ($cmp:expr) => {
+            for i in 0..n {
+                let v = unsafe { *data.get_unchecked(i) };
+                let m = $cmp(v) as usize;
+                unsafe { *out.get_unchecked_mut(k) = i as u32 };
+                k += m;
+            }
+        };
+    }
+    match op {
+        CmpOp::Gt => run!(|v| v > lit),
+        CmpOp::Lt => run!(|v| v < lit),
+        CmpOp::Ge => run!(|v| v >= lit),
+        CmpOp::Le => run!(|v| v <= lit),
+        CmpOp::Eq => run!(|v| v == lit),
+    }
+    out.truncate(k);
+    out
+}
+
+#[derive(Clone, Copy, Debug)]
+pub struct AccDate {
+    pub count: u64,
+    pub min: i32,
+    pub max: i32,
+}
+
+impl Default for AccDate {
+    fn default() -> Self {
+        AccDate { count: 0, min: i32::MAX, max: i32::MIN }
+    }
+}
+
+pub fn sum_date(data: &[i32]) -> AccDate {
+    let mut min = i32::MAX;
+    let mut max = i32::MIN;
+    for &v in data {
+        if v < min { min = v; }
+        if v > max { max = v; }
+    }
+    if data.is_empty() {
+        min = i32::MAX;
+        max = i32::MIN;
+    }
+    AccDate { count: data.len() as u64, min, max }
+}
+
+pub fn sum_date_sel(data: &[i32], sel: &[u32]) -> AccDate {
+    let mut min = i32::MAX;
+    let mut max = i32::MIN;
+    for &i in sel {
+        let v = unsafe { *data.get_unchecked(i as usize) };
+        if v < min { min = v; }
+        if v > max { max = v; }
+    }
+    if sel.is_empty() {
+        min = i32::MAX;
+        max = i32::MIN;
+    }
+    AccDate { count: sel.len() as u64, min, max }
 }

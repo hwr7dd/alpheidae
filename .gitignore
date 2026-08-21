@@ -1,5 +1,64 @@
+# Build
 /target
-Cargo.lock
+**/target/
 *.tar.gz
 /tmp
 **/*.blitz
+
+# Lockfile: keep out of VCS for this workspace (regenerate per toolchain)
+Cargo.lock
+
+# Local / personal Cursor config (permissions, rules, skills copies)
+.cursor/
+.cursor/**
+
+# Secrets & credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+id_rsa*
+credentials.json
+**/credentials
+.aws/credentials
+**/secrets/
+**/*secret*.local.*
+*.tfvars
+!*.tfvars.example
+
+# Terraform local state (also covered under deploy/terraform/.gitignore)
+**/.terraform/
+**/*.tfstate
+**/*.tfstate.*
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# Private / non-public notes (agent session status, local guides)
+FINAL_*.md
+IMPLEMENTATION_*.md
+PRODUCTION_STATUS.md
+REMAINING_WORK.md
+**/PRIVATE*.md
+**/private/
+
+# Local deploy overrides (real tokens, bucket names)
+deploy/k8s/*-secret.yaml
+deploy/k8s/secret.yaml
+deploy/k8s/*.local.yaml
+deploy/local/
+*.local.toml
+
+# Runtime data
+/var/
+**/data/
+**/*.bin
+!crates/**/*.rs

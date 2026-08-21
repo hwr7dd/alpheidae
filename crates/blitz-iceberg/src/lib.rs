@@ -417,3 +417,42 @@ pub fn commit_append(
     meta.current_snapshot = Some(snapshot_id);
     write_metadata(meta, version)
 }
+
+// ---------------------------------------------------------------------------
+// Object-store backed metadata (file:// or s3:// warehouses)
+// ---------------------------------------------------------------------------
+
+/// Read `metadata.json` bytes from an object store key.
+pub fn read_metadata_from_store(
+    store: &dyn blitz_store::ObjectStore,
+    key: &str,
+) -> std::io::Result<TableMeta> {
+    let bytes = store.get(key)?;
+    let text = String::from_utf8(bytes)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    // Reuse path-based parser via temp — or parse JSON directly.
+    let tmp = std::env::temp_dir().join(format!("blitz-meta-{}.json", std::process::id()));
+    std::fs::write(&tmp, &text)?;
+    let meta = read_metadata(&tmp);
+    let _ = std::fs::remove_file(&tmp);
+    meta
+}
+
+/// Write metadata.json to the object store; returns the object key.
+pub fn write_metadata_to_store(
+    store: &dyn blitz_store::ObjectStore,
+    meta: &TableMeta,
+    version: u32,
+) -> std::io::Result<String> {
+    let path = write_metadata(meta, version)?;
+    let bytes = std::fs::read(&path)?;
+    let key = format!("metadata/v{version}.metadata.json");
+    store.put(&key, &bytes)?;
+    Ok(key)
+}
+
+/// Open a warehouse URI (`file:///...` or `s3://bucket/prefix`).
+pub fn open_warehouse(uri: &str) -> std::io::Result<Box<dyn blitz_store::ObjectStore>> {
+    blitz_store::open(uri)
+}
+

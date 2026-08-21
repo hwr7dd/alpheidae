@@ -1,0 +1,31 @@
+# Firecracker query host — requires bare-metal EC2 with /dev/kvm.
+# Runs blitz-queryd + Firecracker hypervisor on a privileged K8s DaemonSet
+# or standalone EC2 instance.
+FROM rust:1.75-bookworm AS builder
+WORKDIR /src
+COPY Cargo.toml Cargo.lock* ./
+COPY crates ./crates
+RUN cargo build --release -p blitz-boot --bin blitz-queryd --bin blitz-igniter
+
+FROM debian:bookworm-slim
+
+ARG FC_VERSION=1.7.0
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates curl iproute2 awscli \
+    && curl -fsSL "https://github.com/firecracker-microvm/firecracker/releases/download/v${FC_VERSION}/firecracker-v${FC_VERSION}-x86_64.tgz" \
+    | tar -xz -C /usr/local/bin --strip-components=1 "release-v${FC_VERSION}-x86_64/firecracker-v${FC_VERSION}-x86_64" \
+    && mv /usr/local/bin/firecracker-v${FC_VERSION}-x86_64 /usr/local/bin/firecracker \
+    && chmod +x /usr/local/bin/firecracker \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /src/target/release/blitz-queryd /src/target/release/blitz-igniter /usr/local/bin/
+COPY deploy/scripts/firecracker-host-init.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/firecracker-host-init.sh
+
+ENV BLITZ_SNAPDIR=/var/lib/blitz/snapshots \
+    BLITZ_RUNDIR=/run/blitz \
+    BLITZ_LISTEN=0.0.0.0:8080 \
+    BLITZ_WORKERS=6
+
+EXPOSE 8080
+ENTRYPOINT ["/usr/local/bin/firecracker-host-init.sh"]

@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: blitz-meta
+  namespace: blitz
+spec:
+  serviceName: blitz-meta-headless
+  replicas: 3
+  selector:
+    matchLabels:
+      app: blitz-meta
+  template:
+    metadata:
+      labels:
+        app: blitz-meta
+    spec:
+      nodeSelector:
+        blitz.io/tier: system
+      containers:
+        - name: meta
+          image: blitz-meta:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 7401
+              name: meta
+          env:
+            - name: BLITZ_META_ADDR
+              value: "0.0.0.0:7401"
+            - name: BLITZ_META_DATA_DIR
+              value: "/var/lib/blitz/meta"
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: BLITZ_META_PEERS
+              value: "blitz-meta-0.blitz-meta-headless.blitz.svc.cluster.local:7401,blitz-meta-1.blitz-meta-headless.blitz.svc.cluster.local:7401,blitz-meta-2.blitz-meta-headless.blitz.svc.cluster.local:7401"
+          volumeMounts:
+            - name: meta-data
+              mountPath: /var/lib/blitz/meta
+          readinessProbe:
+            tcpSocket:
+              port: 7401
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket:
+              port: 7401
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: meta-data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: gp3
+        resources:
+          requests:
+            storage: 10Gi

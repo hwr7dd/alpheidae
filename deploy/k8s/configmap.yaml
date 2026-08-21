@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blitz-config
+  namespace: blitz
+data:
+  BLITZ_META_ADDR: "0.0.0.0:7401"
+  BLITZ_META_DATA_DIR: "/var/lib/blitz/meta"
+  # Peers for a 3-node StatefulSet (self is filtered via POD_NAME).
+  BLITZ_META_PEERS: "blitz-meta-0.blitz-meta-headless.blitz.svc.cluster.local:7401,blitz-meta-1.blitz-meta-headless.blitz.svc.cluster.local:7401,blitz-meta-2.blitz-meta-headless.blitz.svc.cluster.local:7401"
+  # Set after terraform apply: terraform output -raw warehouse_uri
+  BLITZ_WAREHOUSE: "s3://REPLACE_WITH_WAREHOUSE_BUCKET/warehouse"
+  BLITZ_LISTEN: "0.0.0.0:8080"

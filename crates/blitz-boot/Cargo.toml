@@ -13,3 +13,7 @@ path = "src/bin/blitz_init.rs"
 [[bin]]
 name = "blitz-igniter"
 path = "src/bin/blitz_igniter.rs"
+
+[[bin]]
+name = "blitz-queryd"
+path = "src/bin/blitz_queryd.rs"

@@ -1,0 +1,100 @@
+# Privileged DaemonSet for Firecracker query hosts.
+# MUST run on bare-metal EKS nodes (m5.metal / i3.metal) with /dev/kvm.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: blitz-firecracker
+  namespace: blitz
+spec:
+  selector:
+    matchLabels:
+      app: blitz-firecracker
+  template:
+    metadata:
+      labels:
+        app: blitz-firecracker
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      nodeSelector:
+        blitz.io/tier: firecracker
+      tolerations:
+        - key: blitz.io/firecracker
+          operator: Equal
+          value: "true"
+          effect: NoSchedule
+      containers:
+        - name: firecracker-host
+          image: blitz-firecracker-host:latest
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["NET_ADMIN", "SYS_ADMIN"]
+          env:
+            - name: BLITZ_ARTIFACTS_BUCKET
+              valueFrom:
+                configMapKeyRef:
+                  name: blitz-firecracker-config
+                  key: artifacts_bucket
+            - name: BLITZ_WORKERS
+              value: "6"
+            - name: BLITZ_LISTEN
+              value: "0.0.0.0:8080"
+          ports:
+            - containerPort: 8080
+              hostPort: 8080
+              name: query
+          volumeMounts:
+            - name: kvm
+              mountPath: /dev/kvm
+            - name: snapshots
+              mountPath: /var/lib/blitz/snapshots
+            - name: run
+              mountPath: /run/blitz
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: "4"
+              memory: 16Gi
+            limits:
+              cpu: "32"
+              memory: 64Gi
+      volumes:
+        - name: kvm
+          hostPath:
+            path: /dev/kvm
+            type: CharDevice
+        - name: snapshots
+          hostPath:
+            path: /var/lib/blitz/snapshots
+            type: DirectoryOrCreate
+        - name: run
+          emptyDir: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blitz-firecracker-config
+  namespace: blitz
+data:
+  artifacts_bucket: "REPLACE_WITH_BUCKET_NAME"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blitz-query
+  namespace: blitz
+spec:
+  type: LoadBalancer
+  selector:
+    app: blitz-firecracker
+  ports:
+    - name: query
+      port: 8080
+      targetPort: 8080

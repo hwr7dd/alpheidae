@@ -1,0 +1,15 @@
+[package]
+name = "blitz-store"
+version = "0.1.0"
+edition = "2021"
+description = "Object store abstraction (local FS + S3) for Iceberg warehouses"
+
+[dependencies]
+# Optional AWS S3 via the official SDK (enable with `--features s3`)
+aws-config = { version = "1", optional = true }
+aws-sdk-s3 = { version = "1", optional = true }
+tokio = { version = "1", features = ["rt-multi-thread", "macros"], optional = true }
+
+[features]
+default = []
+s3 = ["dep:aws-config", "dep:aws-sdk-s3", "dep:tokio"]

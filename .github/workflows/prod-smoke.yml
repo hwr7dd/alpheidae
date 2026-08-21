@@ -1,0 +1,19 @@
+# CI smoke — build critical crates and run unit tests on push/PR.
+
+name: prod-smoke
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+      - name: Check + test
+        run: bash scripts/prod-smoke.sh

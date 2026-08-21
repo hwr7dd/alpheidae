@@ -2,3 +2,7 @@
 name = "blitz-meta"
 version = "0.1.0"
 edition = "2021"
+
+[[bin]]
+name = "blitz-meta-server"
+path = "src/bin/meta_server.rs"

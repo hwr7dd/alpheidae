@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: blitz-meta-headless
+  namespace: blitz
+  labels:
+    app: blitz-meta
+spec:
+  clusterIP: None
+  selector:
+    app: blitz-meta
+  ports:
+    - name: meta
+      port: 7401
+      targetPort: 7401
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blitz-meta
+  namespace: blitz
+  labels:
+    app: blitz-meta
+spec:
+  selector:
+    app: blitz-meta
+  ports:
+    - name: meta
+      port: 7401
+      targetPort: 7401

@@ -1,0 +1,95 @@
+# Alpheidae local dev environment (Docker Desktop on Windows/macOS/Linux)
+#
+# No Firecracker/KVM — uses in-process simulated microVM workers and real TCP.
+# See deploy/docker/DEV.md for full guide.
+#
+# Quick start:
+#   docker compose build
+#   docker compose run --rm blitz-demo
+#   docker compose run --rm iceberg-demo
+#   docker compose --profile dev run --rm dev
+
+name: alpheidae
+
+services:
+  # Single build target — all runtime services share this image.
+  blitz-demo:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.dev
+      target: runtime
+    image: alpheidae-dev:local
+    entrypoint: ["blitz-demo"]
+
+  iceberg-demo:
+    image: alpheidae-dev:local
+    entrypoint: ["iceberg-demo"]
+
+  multi-node-demo:
+    image: alpheidae-dev:local
+    entrypoint: ["multi-node-demo"]
+
+  meta-0:
+    image: alpheidae-dev:local
+    entrypoint: ["blitz-meta-server"]
+    environment:
+      BLITZ_META_ADDR: "0.0.0.0:7401"
+      BLITZ_META_PEERS: "meta-1:7401,meta-2:7401"
+    ports:
+      - "7401:7401"
+    profiles: [meta]
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/127.0.0.1/7401' || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  meta-1:
+    image: alpheidae-dev:local
+    entrypoint: ["blitz-meta-server"]
+    environment:
+      BLITZ_META_ADDR: "0.0.0.0:7401"
+      BLITZ_META_PEERS: "meta-0:7401,meta-2:7401"
+    ports:
+      - "7402:7401"
+    profiles: [meta]
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/127.0.0.1/7401' || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  meta-2:
+    image: alpheidae-dev:local
+    entrypoint: ["blitz-meta-server"]
+    environment:
+      BLITZ_META_ADDR: "0.0.0.0:7401"
+      BLITZ_META_PEERS: "meta-0:7401,meta-1:7401"
+    ports:
+      - "7403:7401"
+    profiles: [meta]
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c '</dev/tcp/127.0.0.1/7401' || exit 1"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+  dev:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.dev
+      target: dev
+    image: alpheidae-dev:toolchain
+    volumes:
+      - .:/src
+      - cargo-registry:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+      - target-cache:/src/target
+    stdin_open: true
+    tty: true
+    profiles: [dev]
+
+volumes:
+  cargo-registry:
+  cargo-git:
+  target-cache:

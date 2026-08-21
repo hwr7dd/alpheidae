@@ -133,11 +133,12 @@ fn main() {
     // =======================================================================
     banner("1. REPLICATED METADATA (Iceberg catalog, majority commit + fencing)");
     let n1 = MetaNode::start("127.0.0.1:7401", vec!["127.0.0.1:7402".into(), "127.0.0.1:7403".into()], true);
-    let _n2 = MetaNode::start("127.0.0.1:7402", vec!["127.0.0.1:7401".into(), "127.0.0.1:7403".into()], false);
-    let _n3 = MetaNode::start("127.0.0.1:7403", vec!["127.0.0.1:7401".into(), "127.0.0.1:7402".into()], false);
-    std::thread::sleep(std::time::Duration::from_millis(50));
-    let client = MetaClient::new("127.0.0.1:7401");
-    println!("3 meta nodes up; leader = 127.0.0.1:7401 (epoch 1)");
+    let n2 = MetaNode::start("127.0.0.1:7402", vec!["127.0.0.1:7401".into(), "127.0.0.1:7403".into()], false);
+    let n3 = MetaNode::start("127.0.0.1:7403", vec!["127.0.0.1:7401".into(), "127.0.0.1:7402".into()], false);
+    let peers = ["127.0.0.1:7401", "127.0.0.1:7402", "127.0.0.1:7403"];
+    let leader = MetaClient::wait_for_leader(&peers, 3000).expect("Raft election timed out");
+    let client = MetaClient::new(&leader);
+    println!("3 meta nodes up; Raft leader = {leader}");
     match client.put("cluster.name", "blitz-prod") {
         PutResult::Committed(idx) => println!("PUT cluster.name -> committed at log[{idx}] (replicated to majority)"),
         other => println!("PUT failed: {other:?}"),
@@ -273,17 +274,26 @@ fn main() {
     // 3. Leader failover + fencing
     // =======================================================================
     banner("3. CATALOG FAILOVER (leader dies mid-flight, epoch fencing)");
-    println!("killing leader 127.0.0.1:7401 ...");
-    n1.kill();
-    println!("promoting 127.0.0.1:7402 to leader with epoch 2 (deterministic promotion; \n  a Raft election would pick the same node — see ARCHITECTURE.md)");
-    let ok = MetaClient::promote("127.0.0.1:7402", 2);
+    println!("killing leader {leader} ...");
+    match leader.as_str() {
+        "127.0.0.1:7401" => n1.kill(),
+        "127.0.0.1:7402" => n2.kill(),
+        _ => n3.kill(),
+    }
+    let promote_addr = if leader == "127.0.0.1:7402" {
+        "127.0.0.1:7403"
+    } else {
+        "127.0.0.1:7402"
+    };
+    println!("promoting {promote_addr} to leader with epoch 2 (deterministic promotion; \n  a Raft election would pick the same node — see ARCHITECTURE.md)");
+    let ok = MetaClient::promote(promote_addr, 2);
     println!("promotion {}", if ok { "accepted" } else { "rejected" });
-    let client = MetaClient::new("127.0.0.1:7402");
+    let client = MetaClient::new(promote_addr);
     match client.put("cluster.note", "served-by-epoch-2") {
         PutResult::Committed(idx) => println!("PUT through new leader -> committed at log[{idx}]"),
         other => println!("PUT through new leader failed: {other:?}"),
     }
-    let stale = MetaClient::new("127.0.0.1:7401");
+    let stale = MetaClient::new(&leader);
     println!("write through dead old leader -> {:?}", stale.put("x", "y"));
     match client.load_table("sales") {
         Some(p) => println!("catalog read after failover: iceberg.table.sales -> {p}"),

@@ -2,3 +2,15 @@
 name = "blitz-format"
 version = "0.1.0"
 edition = "2021"
+
+[dependencies]
+snap = { version = "1", optional = true }
+flate2 = { version = "1", optional = true }
+zstd = { version = "0.13", optional = true }
+parquet = { version = "53", default-features = false, features = ["snap", "zstd", "flate2"], optional = true }
+bytes = { version = "1", optional = true }
+
+[features]
+default = ["compress"]
+compress = ["dep:snap", "dep:flate2", "dep:zstd"]
+arrow-parquet = ["dep:parquet", "dep:bytes", "compress"]

@@ -27,3 +27,7 @@ path = "../blitz-engine"
 [[bin]]
 name = "iceberg-demo"
 path = "src/bin/iceberg_demo.rs"
+
+[[bin]]
+name = "multi-node-demo"
+path = "src/bin/multi_node_demo.rs"

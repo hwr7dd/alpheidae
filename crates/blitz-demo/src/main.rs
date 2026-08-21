@@ -129,7 +129,7 @@ fn main() {
     println!("\n── baseline: single node only ─────────────────────────────");
     let tl = Arc::new(Timeline::new());
     let t = Instant::now();
-    let rep = run_ramped(table.clone(), q, 2, "127.0.0.1:7313", 0, false, tl);
+    let rep = run_ramped(table.clone(), q.clone(), 2, "127.0.0.1:7313", 0, false, tl);
     let single_ms = t.elapsed().as_secs_f64() * 1e3;
     println!("single-node total: {:.2} ms ({} morsels)", single_ms, rep.morsels_executed);
 
@@ -140,7 +140,7 @@ fn main() {
     // Classic engines block until every worker registers:
     std::thread::sleep(Duration::from_millis(RESUME_MS + 3)); // resume + handshake
     let tl = Arc::new(Timeline::new());
-    let rep = run_ramped(table.clone(), q, 2, ADDR_STATIC, N_WORKERS, false, tl);
+    let rep = run_ramped(table.clone(), q.clone(), 2, ADDR_STATIC, N_WORKERS, false, tl);
     let staticc_ms = t.elapsed().as_secs_f64() * 1e3;
     println!("wait-then-run total: {:.2} ms (first work only after cluster up)", staticc_ms);
     drop(rep);
@@ -172,7 +172,7 @@ fn main() {
     println!("query: {heavy_sql}");
     let tl = Arc::new(Timeline::new());
     let th = Instant::now();
-    let rep1 = run_ramped(table.clone(), hq, 1, "127.0.0.1:7320", 0, false, tl);
+    let rep1 = run_ramped(table.clone(), hq.clone(), 1, "127.0.0.1:7320", 0, false, tl);
     let heavy_single_ms = th.elapsed().as_secs_f64() * 1e3;
 
     let tl = Arc::new(Timeline::new());

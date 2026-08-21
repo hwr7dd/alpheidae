@@ -21,6 +21,8 @@
 //! measurable.
 
 mod lz4;
+pub mod parquet;
+
 use std::collections::HashMap;
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::sync::atomic::{AtomicU64, Ordering};

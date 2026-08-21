@@ -13,6 +13,7 @@ members = [
     "crates/blitz-meta",
     "crates/blitz-plan",
     "crates/blitz-engine",
+    "crates/blitz-store",
 ]
 
 [profile.release]

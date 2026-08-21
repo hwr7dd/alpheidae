@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 blitz-avro = { path = "../blitz-avro" }
 blitz-format = { path = "../blitz-format" }
+blitz-store = { path = "../blitz-store" }
 serde_json = "1"

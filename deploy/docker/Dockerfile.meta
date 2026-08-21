@@ -1,0 +1,14 @@
+# Replicated Iceberg catalog (blitz-meta). Runs on standard EKS nodes.
+FROM rust:1.75-bookworm AS builder
+WORKDIR /src
+COPY Cargo.toml Cargo.lock* ./
+COPY crates ./crates
+RUN cargo build --release -p blitz-meta --bin blitz-meta-server
+
+FROM debian:bookworm-slim
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /src/target/release/blitz-meta-server /usr/local/bin/
+EXPOSE 7401
+USER 65534
+ENTRYPOINT ["blitz-meta-server"]
