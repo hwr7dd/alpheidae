@@ -9,7 +9,7 @@ FROM rust:1.85-bookworm AS builder
 WORKDIR /src
 COPY Cargo.toml Cargo.lock ./
 COPY crates ./crates
-RUN cargo build --release -p blitz-demo --bin blitz-demo --bin iceberg-demo --bin multi-node-demo \
+RUN cargo build --release -p blitz-demo --bin blitz-demo --bin iceberg-demo --bin multi-node-demo --bin stream-demo \
  && cargo build --release -p blitz-meta --bin blitz-meta-server
 
 FROM debian:bookworm-slim AS runtime
@@ -18,6 +18,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 COPY --from=builder /src/target/release/blitz-demo \
                     /src/target/release/iceberg-demo \
                     /src/target/release/multi-node-demo \
+                    /src/target/release/stream-demo \
                     /src/target/release/blitz-meta-server \
                     /usr/local/bin/
 WORKDIR /data

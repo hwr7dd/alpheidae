@@ -24,6 +24,9 @@ docker compose run --rm blitz-demo
 
 # Full lakehouse demo: meta + Iceberg + joins (~1–2 min)
 docker compose run --rm iceberg-demo
+
+# Epoch streaming: lag→N, steal units, meta offsets, Iceberg appends
+docker compose run --rm stream-demo
 ```
 
 Or use the helper script:
@@ -32,6 +35,7 @@ Or use the helper script:
 .\scripts\dev.ps1 build
 .\scripts\dev.ps1 demo
 .\scripts\dev.ps1 iceberg
+.\scripts\dev.ps1 stream
 ```
 
 ## What runs inside Docker
@@ -40,6 +44,7 @@ Or use the helper script:
 |---------|--------------|
 | `blitz-demo` | 8M-row benchmark; simulates 6 microVM workers with 5 ms resume delay |
 | `iceberg-demo` | 3-node in-process meta, Iceberg warehouse, broadcast + shuffle joins |
+| `stream-demo` | Epoch streaming: lag-sized workers, Raft offsets, Iceberg sink |
 | `--profile meta up` | 3 **separate containers** for distributed meta testing |
 
 **Not included:** Firecracker, KVM, real microVM snapshot resume. Those require bare-metal Linux (see `deploy/README.md` for AWS).

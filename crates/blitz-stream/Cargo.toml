@@ -1,0 +1,8 @@
+[package]
+name = "blitz-stream"
+version = "0.1.0"
+edition = "2021"
+description = "Epoch-based streaming: external offsets, backlog-sized worker ramps, stealable work units"
+
+[dependencies]
+blitz-meta = { path = "../blitz-meta" }

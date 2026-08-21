@@ -7,6 +7,7 @@
 #   docker compose build
 #   docker compose run --rm blitz-demo
 #   docker compose run --rm iceberg-demo
+#   docker compose run --rm stream-demo
 #   docker compose --profile dev run --rm dev
 
 name: alpheidae
@@ -28,6 +29,10 @@ services:
   multi-node-demo:
     image: alpheidae-dev:local
     entrypoint: ["multi-node-demo"]
+
+  stream-demo:
+    image: alpheidae-dev:local
+    entrypoint: ["stream-demo"]
 
   meta-0:
     image: alpheidae-dev:local

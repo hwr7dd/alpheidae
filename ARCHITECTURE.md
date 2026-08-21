@@ -71,10 +71,28 @@ alpheidae-plan      SQL front end + cost-based optimizer (joins, pushdown,
                 projection pruning, broadcast-vs-shuffle decision)
 alpheidae-engine    executor: late-materialized Iceberg scans, broadcast and
                 shuffle hash joins, two-phase agg, ramped morsel scheduler
-alpheidae-demo      two binaries: alpheidae-demo (cold-start/ramp benchmark) and
-                iceberg-demo (end-to-end lakehouse query path)
+alpheidae-demo      binaries: alpheidae-demo, iceberg-demo, multi-node-demo,
+                stream-demo (epoch streaming)
+alpheidae-stream    epoch controller: lag→N sizing, stealable partition units,
+                external offsets in meta, optional Iceberg appends
 microvm/        kernel config, rootfs builder, snapshot + query-path scripts
 ```
+
+## Epoch streaming
+
+Batch queries and streams share the same elasticity idea: work is a stealable
+queue, not a fixed key-group assignment. A stream is driven as **micro-batch
+epochs**:
+
+1. Measure consumer lag across partitions (high watermark − committed offset).
+2. Size worker count `N` for *this epoch only* from that lag.
+3. Workers (including late joiners) steal partition slices from a live queue.
+4. Commit results and consumer offsets to external state (`blitz-meta` Raft KV);
+   optionally append Iceberg data files.
+5. Workers go idle until the next epoch — no Flink-style savepoint / rescale.
+
+Offsets and table snapshots live outside the workers, so changing `N` does not
+migrate operator state. See `crates/blitz-stream` and `stream-demo`.
 
 ## The lakehouse stack (session 2)
 

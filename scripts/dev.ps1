@@ -1,7 +1,7 @@
 # Alpheidae local dev helper (Windows PowerShell)
 param(
     [Parameter(Position = 0)]
-    [ValidateSet("build", "demo", "iceberg", "meta", "shell", "help")]
+    [ValidateSet("build", "demo", "iceberg", "stream", "meta", "shell", "help")]
     [string]$Command = "help"
 )
 
@@ -30,6 +30,10 @@ switch ($Command) {
         Require-Docker
         docker compose run --rm iceberg-demo
     }
+    "stream" {
+        Require-Docker
+        docker compose run --rm stream-demo
+    }
     "meta" {
         Require-Docker
         Write-Host "Starting 3-node meta cluster (Ctrl+C to stop)..."
@@ -46,6 +50,7 @@ Alpheidae Docker dev (Windows)
   .\scripts\dev.ps1 build     Build images
   .\scripts\dev.ps1 demo      Run blitz-demo benchmark
   .\scripts\dev.ps1 iceberg   Run iceberg-demo lakehouse demo
+  .\scripts\dev.ps1 stream    Run stream-demo epoch streaming
   .\scripts\dev.ps1 meta      Start 3-container meta cluster
   .\scripts\dev.ps1 shell     Interactive Rust dev container
 

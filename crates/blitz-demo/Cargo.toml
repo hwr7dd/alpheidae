@@ -23,6 +23,8 @@ path = "../blitz-plan"
 path = "../blitz-meta"
 [dependencies.blitz-engine]
 path = "../blitz-engine"
+[dependencies.blitz-stream]
+path = "../blitz-stream"
 
 [[bin]]
 name = "iceberg-demo"
@@ -31,3 +33,7 @@ path = "src/bin/iceberg_demo.rs"
 [[bin]]
 name = "multi-node-demo"
 path = "src/bin/multi_node_demo.rs"
+
+[[bin]]
+name = "stream-demo"
+path = "src/bin/stream_demo.rs"
